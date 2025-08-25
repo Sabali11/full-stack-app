@@ -1,0 +1,100 @@
+/* App.css */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  height: 100vh;
+  display: flex;
+  justify-content: center; /* horizontal center */
+  align-items: center;     /* vertical center */
+  background-color: #f5f6fa;
+}
+
+#root {
+  width: 90%;
+  max-width: 800px;
+}
+
+h1 {
+  text-align: center;
+  color: #2f3640;
+  margin-bottom: 20px;
+}
+
+.create-form {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.create-form input {
+  padding: 8px 12px;
+  border: 1px solid #dcdde1;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.create-form button {
+  padding: 8px 16px;
+  background-color: #487eb0;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.create-form button:hover {
+  background-color: #40739e;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+table th, table td {
+  padding: 12px 15px;
+  text-align: center;
+  border-bottom: 1px solid #dcdde1;
+}
+
+table th {
+  background-color: #40739e;
+  color: white;
+}
+
+table tr:nth-child(even) {
+  background-color: #f1f2f6;
+}
+
+button {
+  padding: 5px 10px;
+  margin: 0 2px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  color: white;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+button:nth-child(1) { /* Update button */
+  background-color: #44bd32;
+}
+
+button:nth-child(2) { /* Delete button */
+  background-color: #e84118;
+}
+
+input[type="text"], input[type="email"] {
+  width: 100%;
+  box-sizing: border-box;
+}
