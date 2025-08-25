@@ -1,11 +1,33 @@
 from flask import Flask, request, jsonify, send_from_directory
+from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from config import db, app as flask_app
-from model import Contact
 import os
 
-app = flask_app
+# --- App setup ---
+app = Flask(__name__, static_folder="dist", static_url_path="")
 CORS(app)
+
+# --- Database config ---
+DB_URL = os.environ.get("DATABASE_URL", "sqlite:///instance/database.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+
+# --- Models ---
+class Contact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "firstName": self.first_name,
+            "lastName": self.last_name,
+            "email": self.email
+        }
 
 # --- API Routes ---
 @app.route("/contacts", methods=["GET"])
@@ -14,13 +36,15 @@ def get_contacts():
     return jsonify({"contacts": [c.to_json() for c in contacts]}), 200
 
 @app.route("/contacts", methods=["POST"])
-def create_contacts():
-    first_name = request.json.get("firstName")
-    last_name = request.json.get("lastName")
-    email = request.json.get("email")
-    if not first_name or not last_name or not email:
-        return jsonify({"message":"You must fill all fields"}), 400
-    new_contact = Contact(first_name=first_name, last_name=last_name, email=email)
+def create_contact():
+    data = request.json
+    if not data.get("firstName") or not data.get("lastName") or not data.get("email"):
+        return jsonify({"message": "You must fill all fields"}), 400
+    new_contact = Contact(
+        first_name=data["firstName"],
+        last_name=data["lastName"],
+        email=data["email"]
+    )
     try:
         db.session.add(new_contact)
         db.session.commit()
@@ -38,13 +62,13 @@ def update_contact(id):
     contact.last_name = data.get("lastName", contact.last_name)
     contact.email = data.get("email", contact.email)
     db.session.commit()
-    return jsonify({"message":"User updated"}), 200
+    return jsonify({"message": "User updated"}), 200
 
 @app.route("/contacts/<int:id>", methods=["DELETE"])
 def delete_contact(id):
     contact = Contact.query.get(id)
     if not contact:
-        return jsonify({"message":"User does not exist"}), 400
+        return jsonify({"message": "User does not exist"}), 400
     db.session.delete(contact)
     db.session.commit()
     return jsonify({"message": "User deleted successfully"}), 200
@@ -53,14 +77,16 @@ def delete_contact(id):
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
-    dist_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist")
-    if path != "" and os.path.exists(os.path.join(dist_dir, path)):
-        return send_from_directory(dist_dir, path)
-    return send_from_directory(dist_dir, "index.html")
+    if path != "" and os.path.exists(os.path.join("dist", path)):
+        return send_from_directory("dist", path)
+    else:
+        return send_from_directory("dist", "index.html")
 
-# --- Run server ---
+# --- Ensure tables exist ---
+with app.app_context():
+    db.create_all()
+
+# --- Run server for local testing ---
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
