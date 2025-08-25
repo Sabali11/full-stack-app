@@ -1,18 +1,27 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 # --- App setup ---
-app = Flask(__name__, static_folder="dist")
+app = Flask(__name__)
 CORS(app)
 
-# --- Database setup ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "database.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
+# --- Database config ---
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.path.join(BASE_DIR, "contacts.db")
+
+# Prefer Render's DATABASE_URL, fallback to local sqlite
+db_url = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # --- Model ---
 class Contact(db.Model):
@@ -26,71 +35,48 @@ class Contact(db.Model):
             "id": self.id,
             "firstName": self.first_name,
             "lastName": self.last_name,
-            "email": self.email
+            "email": self.email,
         }
 
-# --- API routes ---
+# --- Routes ---
 @app.route("/contacts", methods=["GET"])
 def get_contacts():
     contacts = Contact.query.all()
-    return jsonify({"contacts": [c.to_json() for c in contacts]}), 200
+    return jsonify({"contacts": [c.to_json() for c in contacts]})
 
 @app.route("/contacts", methods=["POST"])
-def create_contacts():
-    data = request.json
-    first_name = data.get("firstName")
-    last_name = data.get("lastName")
-    email = data.get("email")
+def add_contact():
+    data = request.get_json()
+    if not data or not all(k in data for k in ("firstName", "lastName", "email")):
+        return jsonify({"error": "Missing fields"}), 400
 
-    if not first_name or not last_name or not email:
-        return jsonify({"message": "You must fill all fields"}), 400
-
-    new_contact = Contact(first_name=first_name, last_name=last_name, email=email)
-    try:
-        db.session.add(new_contact)
-        db.session.commit()
-    except Exception as e:
-        return jsonify({"message": str(e)}), 400
-
-    return jsonify({"message": "Contact added"}), 201
-
-@app.route("/contacts/<int:id>", methods=["PUT"])
-def update_contact(id):
-    contact = Contact.query.get(id)
-    if not contact:
-        return jsonify({"message": "User not found"}), 404
-
-    data = request.json
-    contact.first_name = data.get("firstName", contact.first_name)
-    contact.last_name = data.get("lastName", contact.last_name)
-    contact.email = data.get("email", contact.email)
-
+    contact = Contact(
+        first_name=data["firstName"],
+        last_name=data["lastName"],
+        email=data["email"],
+    )
+    db.session.add(contact)
     db.session.commit()
-    return jsonify({"message": "User updated"}), 200
+    return jsonify(contact.to_json()), 201
 
 @app.route("/contacts/<int:id>", methods=["DELETE"])
 def delete_contact(id):
-    contact = Contact.query.get(id)
-    if not contact:
-        return jsonify({"message": "User does not exist"}), 400
-
+    contact = Contact.query.get_or_404(id)
     db.session.delete(contact)
     db.session.commit()
-    return jsonify({"message": "User deleted successfully"}), 200
+    return jsonify({"message": "Contact deleted"})
 
-# --- Serve React frontend ---
+# --- React frontend serve ---
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
-    if path != "" and os.path.exists(os.path.join("dist", path)):
+    if path != "" and os.path.exists("dist/" + path):
         return send_from_directory("dist", path)
     else:
         return send_from_directory("dist", "index.html")
 
-# --- Run server ---
+# --- Run locally only ---
 if __name__ == "__main__":
     with app.app_context():
-        db.create_all()  # ensures tables exist
-    # Use PORT environment variable for Render
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+        db.create_all()
+    app.run(debug=True)
