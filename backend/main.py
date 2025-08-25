@@ -25,6 +25,7 @@ migrate = Migrate(app, db)
 
 # --- Model ---
 class Contact(db.Model):
+    __tablename__ = "contact"  # Explicit table name to avoid case issues
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100), nullable=False)
     last_name = db.Column(db.String(100), nullable=False)
@@ -77,6 +78,8 @@ def serve(path):
 
 # --- Run locally only ---
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    # Create tables only for SQLite local dev
+    if db_url.startswith("sqlite"):
+        with app.app_context():
+            db.create_all()
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
