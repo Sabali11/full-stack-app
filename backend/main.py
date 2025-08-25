@@ -12,7 +12,7 @@ CORS(app)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "contacts.db")
 
-# Prefer Render's DATABASE_URL, fallback to local sqlite
+# Prefer Render's DATABASE_URL, fallback to local SQLite
 db_url = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -21,11 +21,11 @@ app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+migrate = Migrate(app, db)  # ✅ correct, use app not main
 
 # --- Model ---
 class Contact(db.Model):
-    __tablename__ = "contact"  # Explicit table name to avoid case issues
+    __tablename__ = "contact"
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100), nullable=False)
     last_name = db.Column(db.String(100), nullable=False)
@@ -76,9 +76,9 @@ def serve(path):
     else:
         return send_from_directory("dist", "index.html")
 
-# --- Run locally only ---
+# --- Run locally ---
 if __name__ == "__main__":
-    # Create tables only for SQLite local dev
+    # For local SQLite only
     if db_url.startswith("sqlite"):
         with app.app_context():
             db.create_all()
