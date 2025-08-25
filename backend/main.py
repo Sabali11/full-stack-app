@@ -1,9 +1,10 @@
-from flask import request, jsonify, send_from_directory
-from config import app, db
-import os
-from model import Contact
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from config import db, app as flask_app
+from model import Contact
+import os
 
+app = flask_app
 CORS(app)
 
 # --- API Routes ---
@@ -48,19 +49,18 @@ def delete_contact(id):
     db.session.commit()
     return jsonify({"message": "User deleted successfully"}), 200
 
-# --- Serve React ---
+# --- Serve React frontend ---
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
-    if path != "" and os.path.exists("dist/" + path):
-        return send_from_directory("dist", path)
-    else:
-        return send_from_directory("dist", "index.html")
+    dist_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist")
+    if path != "" and os.path.exists(os.path.join(dist_dir, path)):
+        return send_from_directory(dist_dir, path)
+    return send_from_directory(dist_dir, "index.html")
 
 # --- Run server ---
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True, host="0.0.0.0", port=5000)  # for local testing
-
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
