@@ -21,7 +21,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)  # ✅ correct, use app not main
+migrate = Migrate(app, db)  
 
 # --- Model ---
 class Contact(db.Model):
@@ -59,6 +59,26 @@ def add_contact():
     db.session.add(contact)
     db.session.commit()
     return jsonify(contact.to_json()), 201
+    
+@app.route("/contacts/<int:id>", methods=["PUT"])
+def update_contact(id):
+    contact = Contact.query.get_or_404(id)
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    # Update fields if provided
+    contact.first_name = data.get("firstName", contact.first_name)
+    contact.last_name = data.get("lastName", contact.last_name)
+    contact.email = data.get("email", contact.email)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+    return jsonify(contact.to_json())
 
 @app.route("/contacts/<int:id>", methods=["DELETE"])
 def delete_contact(id):
@@ -83,3 +103,4 @@ if __name__ == "__main__":
         with app.app_context():
             db.create_all()
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
